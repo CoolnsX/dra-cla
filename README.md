@@ -6,16 +6,12 @@
 <img src="https://img.shields.io/badge/os-windows-brightgreen"></a>
 <img src="https://img.shields.io/badge/os-android-brightgreen"></a>
 <br>
-<a href="https://github.com/ura43"><img src="https://img.shields.io/badge/lead-ura43-lightblue"></a>
 <a href="https://github.com/CoolnsX"><img src="https://img.shields.io/badge/maintainer-CoolnsX-blue"></a>
-<a href="https://github.com/RaynardGerraldo"><img src="https://img.shields.io/badge/maintainer-RayGL-blue"></a>
-<br>
-<a href="https://github.com/71zenith"><img src="https://img.shields.io/badge/maintainer-71zenith-blue"></a>
-<a href="https://github.com/iamchokerman"><img src="https://img.shields.io/badge/maintainer-iamchokerman-blue"></a>
-<a href="https://github.com/Derisis13"><img src="https://img.shields.io/badge/maintainer-Derisis13-blue"></a>
-
 </p>
 
+<br>
 A cli tool to browse and play korean drama, chinese drama.
 <br>
 This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli) and scrapes the site [dramacool](https://dramacool.fo).
+<br>
+Collaborators are welcome.. wanna become maintainer?? Ask me on discord ```CoolansX#7127```
