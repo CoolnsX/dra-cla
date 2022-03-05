@@ -16,5 +16,6 @@
 
 </p>
 
-A cli tool to browse and play korean drama, chinese drama
+A cli tool to browse and play korean drama, chinese drama.
+<br>
 This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli) and scrapes the site [dramacool](https://dramacool.fo).
