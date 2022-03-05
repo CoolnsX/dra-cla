@@ -14,4 +14,4 @@ A cli tool to browse and play korean drama, chinese drama.
 <br>
 This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli) and scrapes the site [dramacool](https://dramacool.fo).
 <br>
-Collaborators are welcome.. wanna become maintainer?? Ask me on discord ```CoolansX#7127```
+Collaborators are welcome.. wanna become maintainer?? Ask me on discord `CoolansX#7127`
