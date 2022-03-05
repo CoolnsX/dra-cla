@@ -3,7 +3,7 @@
 
 <div align="center">
 
-<h2>This project: ani-cli</h2>
+<h2>This project: dra-cla</h2>
 
 <br>
 
