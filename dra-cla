@@ -18,7 +18,7 @@
 # Project repository: https://github.com/CoolnsX/dra-cla
 
 # Version number
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 
 #######################
@@ -70,7 +70,7 @@ die () {
 
 update_script () {
 	# get the newest version of this script from github and replace it
-	update="$(curl -s "https://raw.githubusercontent.com/CoolnsX/dra-cla/master/dra-cla" | diff -u "$0" -)"
+	update="$(curl -s "https://raw.githubusercontent.com/CoolnsX/dra-cla/main/dra-cla" | diff -u "$0" -)"
 	if [ -z "$update" ]; then
 		inf "Script is up to date :)"
 	else
