@@ -7,6 +7,7 @@
 <a href="https://discord.gg/A4c5UWNk"><img src="https://invidget.switchblade.xyz/A4c5UWNk"></a>
 <br>
 <a href="https://github.com/CoolnsX"><img src="https://img.shields.io/badge/maintainer-CoolnsX-blue"></a>
+<a href="https://github.com/iamchokerman"><img src="https://img.shields.io/badge/maintainer-iamchokerman-blue"></a>
 
 </p>
 
