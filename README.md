@@ -11,7 +11,7 @@
 
 </p>
 
-A cli to browse and watch Korean Drama, Chinese drama. This tool scrapes the site [dramacool](https://dramacool.fo).
+A cli to browse and watch Korean Drama, Chinese drama. This tool scrapes the site [asianembed](https://asianembed.io) which is the site dramacool scrapes from.
 
 This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli) which is anime scraping tool. Feel free to check it out if you need to watch anime.
 
@@ -41,7 +41,8 @@ sudo cp dra-cla /usr/local/bin/dra-cla
 Install termux [(Guide)](https://termux.com/)
 
 ```sh
-pkg install git termux-tools ncurses-utils openssl-tool -y
+pkg update
+pkg install git termux-tools ncurses-utils openssl-tool ffmpeg -y
 git clone https://github.com/CoolnsX/dra-cla && cd dra-cla
 cp dra-cla $PREFIX/bin/dra-cla
 echo 'am start -n is.xyz.mpv/.MPVActivity "$2"' > $PREFIX/bin/mpv
@@ -67,3 +68,4 @@ Install mpv-android [(Link)](https://play.google.com/store/apps/details?id=is.xy
 - openssl
 - mpv - Video Player
 - aria2 - Download manager
+- ffmpeg - m3u8 Downloader

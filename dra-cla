@@ -1,25 +1,6 @@
 #!/bin/sh
 
-# dra-cla
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-# Project repository: https://github.com/CoolnsX/dra-cla
-
-# Version number
-VERSION="2.0.0"
-
+VERSION="2.1.0"
 
 #######################
 # AUXILIARY FUNCTIONS #
@@ -48,7 +29,6 @@ help_text () {
 	  -V print version number and exit
 
 	Episode selection:
-	  Add 'h' on beginning for episodes like '6.5' -> 'h6'
 	  Multiple episodes can be chosen given a range
 	    Choose episode [1-13]: 1 6
 	    This would choose episodes 1 2 3 4 5 6
@@ -94,6 +74,14 @@ dep_ch () {
 	done
 }
 
+download () {
+case $2 in
+	*mp4*)
+		aria2c --summary-interval=0 -x 16 -s 16 --referer="$1" "$2" --dir="$download_dir" -o "${3}${4}.mp4" --download-result=hide ;;
+	*)
+		ffmpeg -loglevel error -stats -referer "$1" -i "$2" -c copy "$download_dir/${3}${4}.mp4" ;;
+esac
+}
 
 #############
 # SEARCHING #
@@ -107,27 +95,27 @@ search_drama () {
 }
 
 check_episode () {
-	tmp=$(printf "%s" "$1" | sed 's/[0-9]*.$//')
-	curl -s "$base_url/videos/$1" | sed -nE "s_^[[:space:]]*<a href.*videos/${tmp}(.*)\">_\1_p" | head -n 1
+	data=$(curl -s "$base_url/videos/$1")
+	if [ "$data" != "404" ]; then
+		del=$(printf "%s" "$data" | grep -n "Latest Episodes" | cut -d ":" -f1)
+		printf "%s" "$data" | sed "$del,$ d" | sed -nE "s_^[[:space:]]*<a href.*videos/${2}(.*)\">_\1_p"
+	fi
 }
 
-search_for_unwatched () { # todo: merge into search_history
-	search_results="$*"
-	while read -r drama_id; do
-		current_ep_number=$(check_episode "$drama_id")
-		history_ep_number=$(printf "%s" "$drama_id" | grep -Po '\K\d+' | tail -n 1)
-		[ -n "$current_ep_number" ] && [ "$current_ep_number" -ge "$history_ep_number" ] && printf '%s\n' "$drama_id"
-	done <<-EOF
-	$search_results
-	EOF
+process_hist_entry () {
+	temp_drama_id=$(printf "%s" "$drama_id" | sed 's/[0-9]*.$//')
+	latest_ep=$(printf "%s" "$drama_id" | sed "s/$temp_drama_id//g")
+	current_ep=$(check_episode "$drama_id" "$temp_drama_id" | head -n 1)
+	if [ -n "$current_ep" ] && [ "$current_ep" -ge "$latest_ep" ]; then
+		printf "%s\n" "$drama_id"
+	fi
 }
 
-# compares history with gogoplay, only shows unfinished drama
+# compares history with asianembed, only shows unfinished drama
 search_history () {
 	tput clear
-	search_results=$(cat "$logfile")
-	[ -z "$search_results" ] && die "History is empty"
-	search_results=$(search_for_unwatched "$search_results")
+	[ ! -s "$logfile" ] && die "History is empty"
+	search_results=$(while read -r drama_id; do process_hist_entry & done < "$logfile"; wait)
 	[ -z "$search_results" ] && die "No unwatched episodes"
 	one_hist=$(printf '%s\n' "$search_results" | grep -e "$" -c)
 	[ "$one_hist" = 1 ] && select_first=1
@@ -146,22 +134,15 @@ get_dpage_link() {
 
 	curl -s "$base_url/videos/${drama_id}${ep_no}" | sed -nE 's_^[[:space:]]*<iframe src="([^"]*)".*_\1_p' |
 		sed 's/^/https:/g'
-
 }
 
 decrypt_link() {
 	secret_key='3933343232313932343333393532343839373532333432393038353835373532'
 	iv='39323632383539323332343335383235'
 	ajax_url="$base_url/encrypt-ajax.php"
-	id=$(printf "%s" "$1" | sed -nE 's/.*id=(.*)&title.*/\1/p')
-
-	# encrypt new_id using iv and secret_key
-	ajax=$(printf "%s\010\016\003\010\t\003\004\t" "$id" | openssl enc -aes256 -K "$secret_key" -iv "$iv" -a)
-	#send request and get the data(most lamest way)
+	ajax=$(printf "%s" "$1" | sed -nE 's/.*id=(.*)&title.*/\1/p' | openssl enc -e -aes256 -K "$secret_key" -iv "$iv" | base64)
 	data=$(curl -s -H "X-Requested-With:XMLHttpRequest" "$ajax_url" -d "id=$ajax" | sed -e 's/{"data":"//' -e 's/"}/\n/' -e 's/\\//g')
-	#decrypt the data to get final links
-	printf '%s' "$data" | base64 -d | openssl enc -d -aes256 -K "$secret_key" -iv "$iv" | sed -e 's/\].*/\]/' -e 's/\\//g' |
-		grep -Eo 'https:\/\/[-a-zA-Z0-9@:%._\+~#=][a-zA-Z0-9][-a-zA-Z0-9@:%_\+.~#?&\/\/=]*'
+	printf '%s' "$data" | base64 -d | openssl enc -d -aes256 -K "$secret_key" -iv "$iv" | sed -e 's/\].*/\]/' -e 's/\\//g' | tr '{|}' '\n' | sed -nE 's/\"file\":"([^"]*)".*label.*P.*/\1/p'
 }
 
 # chooses the link for the set quality
@@ -199,23 +180,23 @@ err () {
 
 # display an informational message (first argument in green, second in magenta)
 inf () {
-	printf "\033[1;32m%s \033[1;35m%s\033[0m\n" "$1" "$2"
+	printf "\033[1;35m%s \033[1;35m%s\033[0m\n" "$1" "$2"
 }
 
 # prompts the user with message in $1-2 ($1 in blue, $2 in magenta) and saves the input to the variables in $REPLY and $REPLY2
 prompt () {
-	printf "\033[1;34m%s\033[1;35m%s\033[1;34m: \033[0m" "$1" "$2"
+	printf "\033[1;35m%s\033[1;35m%s\033[1;34m\033[0m" "$1" "$2"
 	read -r REPLY REPLY2
 }
 
-# displays an even (cyan) line of a menu line with $2 as an indicator in [] and $1 as the option
+# displays an even (cyan) line of a menu line with $2 as an indicator in () and $1 as the option
 menu_line_even () {
-	printf "\033[1;34m[\033[1;36m%s\033[1;34m] \033[1;36m%s\033[0m\n" "$2" "$1"
+	printf "\033[1;36m(\033[1;36m%s\033[1;36m) \033[1;36m%s\033[0m\n" "$2" "$1"
 }
 
-# displays an odd (yellow) line of a menu line with $2 as an indicator in [] and $1 as the option
+# displays an odd (yellow) line of a menu line with $2 as an indicator in () and $1 as the option
 menu_line_odd() {
-	printf "\033[1;34m[\033[1;33m%s\033[1;34m] \033[1;33m%s\033[0m\n" "$2" "$1"
+	printf "\033[1;33m(\033[1;33m%s\033[1;33m) \033[1;33m%s\033[0m\n" "$2" "$1"
 }
 
 # display alternating menu lines (even and odd)
@@ -232,7 +213,7 @@ menu_line_alternate() {
 
 # displays a warning (red) line of a menu line with $2 as an indicator in [] and $1 as the option
 menu_line_strong() {
-	printf "\033[1;34m[\033[1;31m%s\033[1;34m] \033[1;31m%s\033[0m\n" "$2" "$1"
+	printf "\033[1;31m(\033[1;31m%s\033[1;31m) \033[1;31m%s\033[0m\n" "$2" "$1"
 }
 
 
@@ -240,16 +221,12 @@ menu_line_strong() {
 # INPUT PARSING #
 #################
 
-is_number () { # todo make this better, or make this inline
-	[ "$1" -eq "$1" ] 2>/dev/null || die 'Invalid number entered'
-}
-
 # only lets the user pass in case of a valid search
 process_search () {
 	search_results=$(search_drama "$query")
 	while [ -z "$search_results" ]; do
 		err 'No search results found'
-		prompt 'Search Drama'
+		prompt 'Search Drama: '
 		query="$REPLY $REPLY2"
 		search_results=$(search_drama "$query")
 	done
@@ -271,68 +248,55 @@ drama_selection () {
 		choice=1
 	elif [ -z "$ep_choice_to_start" ] || { [ -n "$ep_choice_to_start" ] && [ -z "$select_first" ]; }; then
 		menu_line_strong "exit" "q"
-		prompt "Enter choice"
+		prompt "> "
 		choice="$REPLY"
 		while ! [ "$choice" -eq "$choice" ] 2>/dev/null || [ "$choice" -lt 1 ] || [ "$choice" -ge "$count" ] || [ "$choice" = " " ]; do
 			[ "$choice" = "q" ] && exit 0
 			err "Invalid choice entered"
-			prompt "Enter choice"
+			prompt "> "
 			choice="$REPLY"
 		done
 	fi
 	# Select respective drama_id
-	count=1
-	while read -r drama_id; do
-		if [ "$count" -eq "$choice" ]; then
-			selection_id="$drama_id"
-			break
-		fi
-		count=$((count+1))
-	done <<-EOF
-	$search_results
-	EOF
-
-	case $scrape in
-	    query)
-		select_ep_result=$(printf "%s" "$selection_id" | grep -Po '\K\d+' | tail -1);;
-	    history)
-		select_ep_result=$(check_episode "$selection_id");;
-	    *)
-		die "Unexpected scrape type";;
-	esac
-	read -r last_ep_number <<-EOF
-	$select_ep_result
-	EOF
-	selection_id=$(printf "%s" "$selection_id" | sed 's/[0-9]*.$//')
+	selection_id="$(printf "%s" "$search_results" | sed -n "${choice}p")"
+	temp_drama_id=$(printf "%s" "$selection_id" | sed 's/[0-9]*.$//')
+	select_ep_result=$(check_episode "$selection_id" "$temp_drama_id")
+	last_ep_number=$(printf "%s" "$select_ep_result" | head -n 1)
+	first_ep_number=$(printf "%s" "$select_ep_result" | tail -n 1)
+	selection_id=$temp_drama_id
 }
 
 # gets episode number from user, makes sure it's in range, skips input if only one episode exists
 episode_selection () {
-	# using get_dpage_link to get confirmation from episode 0 if it exists,else first_ep_number becomes "1"
-	first_ep_number=0
-	result=$(get_dpage_link "$selection_id" "$first_ep_number")
-	[ -z "$result" ] && first_ep_number=1
 	if [ "$last_ep_number" -gt "$first_ep_number" ]; then
-		inf "Range of episodes can be specified: start_number end_number"
 		if [ -z "$ep_choice_to_start" ]; then
-			prompt "Choose episode" "[$first_ep_number-$last_ep_number]"
-			ep_choice_start="$REPLY"
-			ep_choice_end="$REPLY2"
-			while [ "$ep_choice_start" -lt "$first_ep_number" ] 2> /dev/null || [ "$ep_choice_end" -gt "$last_ep_number" ] 2> /dev/null || [ "$ep_choice_start" -gt "$last_ep_number" ] 2> /dev/null || [ -z "$ep_choice_start" ] 2> /dev/null; do
-				if [ "$ep_choice_end" != -1 ]; then
-					err "Invalid number chosen"
-					prompt "Choose episode" "[$first_ep_number-$last_ep_number]"
-					ep_choice_start="$REPLY"
-					ep_choice_end="$REPLY2"
+			# if branches, because order matters this time
+			while : ; do
+				inf "To specify a range, use: start_number end_number"
+				inf "Episodes:" "($first_ep_number-$last_ep_number)"
+				prompt "> "
+				ep_choice_start="$REPLY"
+				ep_choice_end="$REPLY2"
+				if [ "$REPLY" = q ]; then
+					exit 0
 				fi
+				[ "$ep_choice_end" = "-1" ] && ep_choice_end="$last_ep_number"
+				if ! [ "$ep_choice_start" -eq "$ep_choice_start" ] 2>/dev/null || { [ -n "$ep_choice_end" ] && ! [ "$ep_choice_end" -eq "$ep_choice_end" ] 2>/dev/null; }; then
+					err "Invalid number(s)"
+					continue
+				fi
+				if [ "$ep_choice_start" -gt "$last_ep_number" ] 2>/dev/null || [ "$ep_choice_end" -gt "$last_ep_number" ] 2>/dev/null || [ "$ep_choice_start" -lt "$first_ep_number" ] 2>/dev/null; then
+					err "Episode out of range"
+					continue
+				fi
+				if [ "$ep_choice_end" -le "$ep_choice_start" ]; then
+					err "Invalid range"
+					continue
+				fi
+				break
 			done
 		else
 			ep_choice_start="$ep_choice_to_start" && unset ep_choice_to_start
-		fi
-		whether_half="$(printf '%s' "$ep_choice_start" | cut -c1-1)"
-		if [ "$whether_half" = "h" ]; then
-			half_ep=1
-			ep_choice_start="$(printf '%s' "$ep_choice_start" | cut -c2-)"
 		fi
 	else
 		# In case the drama contains only a single episode
@@ -342,19 +306,13 @@ episode_selection () {
 		auto_play=0
 	else
 		auto_play=1
-		[ "$ep_choice_end" = "-1" ] && ep_choice_end="$last_ep_number"
 	fi
 }
 
-# checks if input is number, creates $episodes from $ep_choice_start and $ep_choice_end
-check_input() {
-	is_number "$ep_choice_start"
+# creates $episodes from $ep_choice_start and $ep_choice_end
+generate_ep_list() {
 	episodes=$ep_choice_start
-	if [ -n "$ep_choice_end" ]; then
-		is_number "$ep_choice_end"
-		# create list of episodes to download/watch
-		episodes=$(seq "$ep_choice_start" "$ep_choice_end")
-	fi
+	[ -n "$ep_choice_end" ] && episodes=$(seq "$ep_choice_start" "$ep_choice_end")
 }
 
 
@@ -374,64 +332,25 @@ open_selection() {
 	episode=${ep_choice_end:-$ep_choice_start}
 }
 
-open_episode () { # todo move input checking
+open_episode () {
 	drama_id="$1"
 	episode="$2"
 
-	#tput clear
-	# checking if episode is in range
-	while [ "$episode" -gt "$last_ep_number" ] || [ -z "$episode" ]; do
-	is_number "$ep_choice_start"
-		if [ "$last_ep_number" -eq 0 ]; then
-			die "Episodes not released yet!"
-		else
-			err "Episode out of range"
-		fi
-		prompt "Choose episode" "[$first_ep_number-$last_ep_number]"
-		episode="$REPLY $REPLY2"
-	done
-	if [ "$half_ep" -eq 1 ]; then
-		temp_ep="$episode"
-		episode="${episode}-5"
-	fi
-	inf "Getting data for episode $episode"
+	tput clear
+	inf "Loading episode $episode..."
 	# decrypting url
 	dpage_link=$(get_dpage_link "$drama_id" "$episode")
-	printf "%s\n" "$dpage_link"
-	video_url=$(get_video_quality "$dpage_link")
-	printf "%s\n" "$video_url"
-	if [ "$half_ep" -eq 1 ]; then
-		episode="$temp_ep"
-		half_ep=0
-	fi
+	echo "$dpage_link"
+    	video_url=$(get_video_quality "$dpage_link")
+	echo "$video_url"
 	if [ "$is_download" -eq 0 ]; then
 		# write drama and episode number and save to temporary history
 		sed -E "
 			s/^${selection_id}[0-9]*/${selection_id}$((episode+1))/
 		" "$logfile" > "${logfile}.new"
-		[ "$PID" -ne 0 ] && kill "$PID" >/dev/null 2>&1
+		[ ! "$PID" = "0" ] && kill "$PID" >/dev/null 2>&1
 		[ -z "$video_url" ] && die "Video URL not found"
-		case "$player_fn" in
-			vlc)
-				if [ "$auto_play" -eq 0 ]; then
-					nohup "$player_fn" --http-referrer="$dpage_link" "$video_url" > /dev/null 2>&1 &
-				else
-					inf "Currently playing $selection_id episode" "$episode/$last_ep_number, Range: $ep_choice_start-$ep_choice_end"
-					"$player_fn" --play-and-exit --http-referrer="$dpage_link" "$video_url" > /dev/null 2>&1
-					sleep 2
-				fi
-				;;
-			*)
-				if [ "$auto_play" -eq 0 ]; then
-					nohup "$player_fn" --referrer="$dpage_link" "$video_url" --force-media-title="dra-cla: $drama_id ep $episode" > /dev/null 2>&1 &
-				else
-					inf "Currently playing $selection_id episode" "$episode/$last_ep_number, Range: $ep_choice_start-$ep_choice_end"
-					"$player_fn" --referrer="$dpage_link" "$video_url" --force-media-title="dra-cla: $drama_id ep $episode" > /dev/null 2>&1
-					sleep 2
-				fi
-				;;
-		esac
-		PID=$!
+		play_episode
 		# overwrite history with temporary history
 		mv "${logfile}.new" "$logfile"
 	else
@@ -439,13 +358,36 @@ open_episode () { # todo move input checking
 		inf "Downloading episode $episode ..."
 		episode=$(printf "%03d" "$episode")
 		{
-			if aria2c -x 16 -s 16 --referer="$dpage_link" "$video_url" --dir="$download_dir" -o "${drama_id}-${episode}.mp4" --download-result=hide ; then
+			if download "$dpage_link" "$video_url" "$drama_id" "$episode" ; then
 				inf "Downloaded episode: $episode"
 			else
 				err "Download failed episode: $episode , please retry or check your internet connection"
 			fi
 		}
 	fi
+}
+
+play_episode () {
+	# Build command
+	set -- "$player_fn" "$video_url"
+	case "$player_fn" in
+		vlc)
+			[ ! "$auto_play" -eq 0 ] && set -- "$@" "--play-and-exit"
+			set -- "$@" --http-referrer="$dpage_link"
+			;;
+		*)
+			set -- "$@" --referrer="$dpage_link" --force-media-title="${drama_id}${episode}"
+			;;
+	esac
+	# Run Command
+	if [ "$auto_play" -eq 0 ]; then
+		nohup "$@" > /dev/null 2>&1 &
+	else
+		inf "Currently playing $display_name episode" "$episode/$last_ep_number, Range: $ep_choice_start-$ep_choice_end"
+		"$@" > /dev/null 2>&1
+		sleep 2
+	fi
+	PID=$!
 }
 
 ############
@@ -458,7 +400,6 @@ trap 'printf "\033[0m";[ -f "$logfile".new ] && rm "$logfile".new;exit 1' INT HU
 # default options
 player_fn="mpv" #video player needs to be able to play urls
 is_download=0
-half_ep=0
 PID=0
 quality=best
 scrape=query
@@ -475,13 +416,8 @@ logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
 
 while getopts 'vq:dp:chDUVa:' OPT; do
 	case $OPT in
-		h)
-			help_text
-			exit 0
-			;;
 		d)
 			is_download=1
-			select_first=1
 			;;
 		a)
 			ep_choice_to_start=$OPTARG
@@ -493,7 +429,6 @@ while getopts 'vq:dp:chDUVa:' OPT; do
 		p)
 			is_download=1
 			download_dir=$OPTARG
-			select_first=1
 			;;
 		q)
 			quality=$OPTARG
@@ -520,18 +455,18 @@ while getopts 'vq:dp:chDUVa:' OPT; do
 done
 shift $((OPTIND - 1))
 
-dep_ch "curl" "sed" "grep" "git" "openssl"
+dep_ch "curl" "sed" "grep" "openssl"
 if [ "$is_download" -eq 0 ]; then
 	dep_ch "$player_fn"
 else
-	dep_ch "aria2c"
+	dep_ch "aria2c" "ffmpeg"
 fi
 
 base_url="https://asianembed.io"
 case $scrape in
 	query)
 		if [ -z "$*" ]; then
-			prompt "Search Drama"
+			prompt "Search Drama: "
 			query="$REPLY $REPLY2"
 		else
 			if [ -n "$ep_choice_to_start" ]; then
@@ -545,15 +480,13 @@ case $scrape in
 	history)
 		search_history
 		[ "$REPLY" = "q" ] && exit 0
-		first_ep_number=0
-		result=$(get_dpage_link "$selection_id" "$first_ep_number")
-		[ -z "$result" ] && first_ep_number=1
+		first_ep_number=$(check_episode "${selection_id}1" "$selection_id" | tail -1)
 		;;
 	*)
 		die "Unexpected scrape type"
 esac
 
-check_input
+generate_ep_list
 append_history
 open_selection
 
@@ -564,48 +497,33 @@ open_selection
 while :; do
 if [ -z "$select_first" ]; then
 	if [ "$auto_play" -eq 0 ]; then
-		inf "Currently playing $selection_id episode" "$episode/$last_ep_number"
+		display_name=$(printf '%s' "$selection_id" | sed 's/-episode-//')
+		inf "Currently playing $display_name episode" "$episode/$last_ep_number"
 	else
 		auto_play=0
 	fi
-	[ "$episode" -ne "$last_ep_number" ] && menu_line_alternate 'next episode' 'n'
-	[ "$episode" -ne "$first_ep_number" ] && menu_line_alternate 'previous episode' 'p'
-	[ "$last_ep_number" -ne "$first_ep_number" ] && menu_line_alternate 'select episode' 's'
-	menu_line_alternate "replay current episode" "r"
-	menu_line_alternate "search for another drama" "a"
-	menu_line_alternate "search history" "h"
-	menu_line_alternate "select quality (current: $quality)" "b"
+	[ "$episode" -ne "$last_ep_number" ] && menu_line_alternate 'next' 'n'
+	[ "$episode" -ne "$first_ep_number" ] && menu_line_alternate 'previous' 'p'
+	menu_line_alternate "replay" "r"
+	[ "$last_ep_number" -ne "$first_ep_number" ] && menu_line_alternate 'select' 's'
 	menu_line_strong "exit" "q"
-	prompt "Enter choice"
+	prompt "> "
 	choice="$REPLY"
 	case $choice in
 		n)
 			ep_choice_start=$((episode + 1))
-			ep_choice_end=
-			;;
-		b)
-			prompt "Select quality. Options (best|worst|360|480|720|1080)"
-			quality="$REPLY"
+			unset ep_choice_end
 			;;
 		p)
 			ep_choice_start=$((episode - 1))
-			ep_choice_end=
+			unset ep_choice_end
+			;;
+		r)
+			ep_choice_start="$episode"
+			unset ep_choice_end
 			;;
 		s)
 			episode_selection
-			;;
-		r)
-			ep_choice_start=$((episode))
-			ep_choice_end=
-			;;
-		a)
-				tput clear
-				prompt "Search Drama"
-				query="$REPLY $REPLY2"
-				process_search
-			;;
-		h)
-			search_history
 			;;
 		q)
 			break
@@ -616,7 +534,7 @@ if [ -z "$select_first" ]; then
 			continue
 			;;
 	esac
-	check_input
+	generate_ep_list
 	append_history
 	open_selection
 else
