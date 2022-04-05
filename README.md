@@ -45,7 +45,7 @@ pkg update
 pkg install git termux-tools ncurses-utils openssl-tool ffmpeg -y
 git clone https://github.com/CoolnsX/dra-cla && cd dra-cla
 cp dra-cla $PREFIX/bin/dra-cla
-echo 'am start -n is.xyz.mpv/.MPVActivity "$2"' > $PREFIX/bin/mpv
+echo 'am start -n is.xyz.mpv/.MPVActivity "$1"' > $PREFIX/bin/mpv
 chmod +x $PREFIX/bin/mpv
 ```
 
