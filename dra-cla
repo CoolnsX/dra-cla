@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="2.1.1"
+VERSION="2.2.0"
 
 #######################
 # AUXILIARY FUNCTIONS #
@@ -90,16 +90,12 @@ esac
 # gets drama names along with its id for search term
 search_drama () {
 	search=$(printf '%s' "$1" | tr ' ' '-' )
-	curl -s "$base_url/search.html" -G -d "keyword=$search" |
+	curl -s "$base_url/search.html?keyword=$search" |
 		sed -nE 's_^[[:space:]]*<a href="/videos/([^"]*)">_\1_p'
 }
 
 check_episode () {
-	data=$(curl -s "$base_url/videos/$1")
-	if [ "$data" != "404" ]; then
-		del=$(printf "%s" "$data" | grep -n "Latest Episodes" | cut -d ":" -f1)
-		printf "%s" "$data" | sed "$del,$ d" | sed -nE "s_^[[:space:]]*<a href.*videos/${2}(.*)\">_\1_p"
-	fi
+	curl -s "$base_url/videos/$1" | sed '/Latest Episodes/,$d' | sed -nE "s_^[[:space:]]*<a href.*videos/${2}(.*)\">_\1_p"
 }
 
 process_hist_entry () {
@@ -137,31 +133,33 @@ get_dpage_link() {
 }
 
 decrypt_link() {
+	fembed_id=$(curl -A "uwu" -s "$1" | sed -nE 's_.*fembed.*/v/([^#]*).*_\1_p')
+	[ -z "$fembed_id" ] || video_links=$(curl -A "uwu" -s -X POST "https://fembed9hd.com/api/source/$fembed_id" -H "x-requested-with:XMLHttpRequest" | sed -e 's/\\//g' -e 's/.*data"://' | tr "}" "\n" | sed -nE 's/.*file":"(.*)","label":"([^"]*)".*/\2>\1/p')
+	[ -z "$video_links" ] || return 0
 	secret_key='3933343232313932343333393532343839373532333432393038353835373532'
 	iv='39323632383539323332343335383235'
 	ajax_url="$base_url/encrypt-ajax.php"
-	ajax=$(printf "%s" "$1" | sed -nE 's/.*id=([^&]*)&.*/\1/p' | openssl enc -e -aes256 -K "$secret_key" -iv "$iv" | base64)
-	data=$(curl -s -H "X-Requested-With:XMLHttpRequest" "$ajax_url" -d "id=$ajax" | sed -e 's/{"data":"//' -e 's/"}/\n/' -e 's/\\//g')
-	printf '%s' "$data" | base64 -d | openssl enc -d -aes256 -K "$secret_key" -iv "$iv" | sed -e 's/\].*/\]/' -e 's/\\//g' | tr '{|}' '\n' | sed -nE 's/\"file\":"([^"]*)".*label.*P.*/\1/p'
+	ajax=$(printf "%s" "$1" | sed -nE 's/.*id=([^&]*)&.*/\1/p' | openssl enc -e -aes256 -K "$secret_key" -iv "$iv" -a)
+	video_links=$(curl -s -H "X-Requested-With:XMLHttpRequest" "$ajax_url" -d "id=$ajax" | sed -e 's/{"data":"//' -e 's/"}/\n/' -e 's/\\//g' | base64 -d | openssl enc -d -aes256 -K "$secret_key" -iv "$iv" | sed -e 's/\].*/\]/' -e 's/\\//g' | tr '{|}' '\n' | sed -nE 's/\"file\":"([^"]*)".*label.*P.*/\1/p')
 }
 
 # chooses the link for the set quality
 get_video_quality() {
 	dpage_url="$1"
-	video_links=$(decrypt_link "$dpage_url")
+	decrypt_link "$dpage_url"
 	case $quality in
 		best)
-			video_link=$(printf '%s' "$video_links" | head -n 4 | tail -n 1)
+			video_link=$(printf '%s' "$video_links" | head -n 4 | tail -n 1 | cut -d'>' -f2)
 			;;
 		worst)
-			video_link=$(printf '%s' "$video_links" | head -n 1)
+			video_link=$(printf '%s' "$video_links" | head -n 1 | cut -d'>' -f2)
 			;;
 		*)
-			video_link=$(printf '%s' "$video_links" | grep -i "${quality}p" | head -n 1)
+			video_link=$(printf '%s' "$video_links" | grep -i "${quality}p" | head -n 1 | cut -d'>' -f2)
 			if [ -z "$video_link" ]; then
 				err "Current video quality is not available (defaulting to best quality)"
 				quality=best
-				video_link=$(printf '%s' "$video_links" | head -n 4 | tail -n 1)
+				video_link=$(printf '%s' "$video_links" | head -n 4 | tail -n 1 | cut -d'>' -f2)
 			fi
 			;;
 	esac
@@ -462,7 +460,7 @@ else
 	dep_ch "aria2c" "ffmpeg"
 fi
 
-base_url="https://asianembed.io"
+base_url="https://asianplay.net"
 case $scrape in
 	query)
 		if [ -z "$*" ]; then
