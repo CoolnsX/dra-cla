@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="2.2.0"
+VERSION="2.2.1"
 
 #######################
 # AUXILIARY FUNCTIONS #
@@ -76,10 +76,10 @@ dep_ch () {
 
 download () {
 case $2 in
-	*mp4*)
-		aria2c --summary-interval=0 -x 16 -s 16 --referer="$1" "$2" --dir="$download_dir" -o "${3}${4}.mp4" --download-result=hide ;;
-	*)
+	*m3u8*)
 		ffmpeg -loglevel error -stats -referer "$1" -i "$2" -c copy "$download_dir/${3}${4}.mp4" ;;
+	*)
+		aria2c --summary-interval=0 -x 16 -s 16 --referer="$1" "$2" --dir="$download_dir" -o "${3}${4}.mp4" --download-result=hide ;;
 esac
 }
 
