@@ -460,7 +460,7 @@ else
 	dep_ch "aria2c" "ffmpeg"
 fi
 
-base_url="https://asianplay.net"
+base_url="https://asianhdplay.pro"
 case $scrape in
 	query)
 		if [ -z "$*" ]; then
