@@ -16,6 +16,7 @@ This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli
 ## Table of Contents
 - [Install](#Installation)
   - [Linux](#Linux)
+    - [Nix](#Nix)
   - [Android](#Android)
 - [Uninstall](#Uninstall)
 - [Dependencies](#Dependencies)
@@ -33,6 +34,12 @@ sudo cp dra-cla /usr/local/bin/dra-cla
 ```
 
 *Note that mpv installed through flatpak is not compatible*
+
+#### Nix
+
+``` shell
+nix-shell -p dra-cla
+```
 
 ### Android
 
