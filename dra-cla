@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="2.2.1"
+VERSION="2.2.2"
 
 #######################
 # AUXILIARY FUNCTIONS #
@@ -460,7 +460,9 @@ else
 	dep_ch "aria2c" "ffmpeg"
 fi
 
-base_url="https://asianhd1.com"
+# Get the current working URL
+base_url=$(curl -Ls -o /dev/null -w %{url_effective} https://asianembed.io)
+
 case $scrape in
 	query)
 		if [ -z "$*" ]; then
