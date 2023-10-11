@@ -136,6 +136,12 @@ decrypt_link() {
 	fembed_id=$(curl -A "uwu" -s "$1" | sed -nE 's_.*fembed.*/v/([^#]*).*_\1_p')
 	[ -z "$fembed_id" ] || video_links=$(curl -A "uwu" -s -X POST "https://fembed9hd.com/api/source/$fembed_id" -H "x-requested-with:XMLHttpRequest" | sed -e 's/\\//g' -e 's/.*data"://' | tr "}" "\n" | sed -nE 's/.*file":"(.*)","label":"([^"]*)".*/\2>\1/p')
 	[ -z "$video_links" ] || return 0
+	dood_id=$(curl -A "uwu" -s "$1" | sed -nE 's_.*dood.*/e/([^?]*).*_\1_p')
+	[ -z "$dood_id" ] || data=$(curl -A "uwu" -s "https://dood.yt/d/$dood_id" | sed -n -E 's#.*<a href="/download/([^"/]+)/n/([^"]+)" class="[^"]*d-flex[^"]*".*#\2\/\1#p')
+	[ -z "$data" ] || link=$(curl -A "uwu" -s "https://dood.yt/pass_md5/${data}" --referer "https://dood.yt")
+	[ -z "$data" ] || token=$(echo $data | cut -d "/" -f2)
+	[ -z "$link" ] || video_links="${link}?token=${token}"
+	[ -n "$video_links" ] && dpage_link="https://dood.yt/" && return 0
 	secret_key='3933343232313932343333393532343839373532333432393038353835373532'
 	iv='39323632383539323332343335383235'
 	ajax_url="$base_url/encrypt-ajax.php"
