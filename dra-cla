@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="2.2.2"
+VERSION="2.2.3"
 
 #######################
 # AUXILIARY FUNCTIONS #
@@ -462,6 +462,10 @@ fi
 
 # Get the current working URL
 base_url=$(curl -Ls -o /dev/null -w %{url_effective} https://asianembed.io)
+
+if [ "$base_url" = "https://asianembed.io/" ]; then
+	base_url=$(curl -Ls -o /dev/null -w "%{url_effective}" https://dramacool.info)
+fi
 
 case $scrape in
 	query)
