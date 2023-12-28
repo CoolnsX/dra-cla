@@ -30,7 +30,8 @@ Install dependencies [(See below)](#Dependencies)
 
 ```sh
 git clone https://github.com/CoolnsX/dra-cla && cd dra-cla
-sudo cp dra-cla /usr/local/bin/dra-cla
+sudo cp -R dra-cla /usr/local/bin/dra-cla
+rm -rf dra-cla
 ```
 
 *Note that mpv installed through flatpak is not compatible*
