@@ -1,76 +1,76 @@
 <p align=center>
 <br>
-<a href="http://makeapullrequest.com"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
-<img src="https://img.shields.io/badge/os-linux-brightgreen">
-<img src="https://img.shields.io/badge/os-android-brightgreen"></a>
-<br>
-<a href="https://github.com/CoolnsX"><img src="https://img.shields.io/badge/maintainer-CoolnsX-blue"></a>
-<a href="https://github.com/iamchokerman"><img src="https://img.shields.io/badge/maintainer-iamchokerman-blue"></a>
-
-</p>
-
-A cli to browse and watch Korean Drama, Chinese drama. This tool scrapes the site [asianembed](https://asianembed.io) which is the site dramacool scrapes from.
-
-This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli) which is anime scraping tool. Feel free to check it out if you need to watch anime.
+<img src="https://img.shields.io/badge/os-linux-orange">
+<a href="https://github.com/fengbainuo"><img src="https://img.shields.io/badge/maintainer-fengbainuo-white"></a>
 
 ## Table of Contents
-- [Install](#Installation)
+- [Important information regarding this fork](<Important information regarding this fork>)
+- [Install](#Install)
   - [Linux](#Linux)
-    - [Nix](#Nix)
-  - [Android](#Android)
+  - [Android - unsupported as of now](<Android - unsupported as of now>)
 - [Uninstall](#Uninstall)
 - [Dependencies](#Dependencies)
+- [Information about the original tool](<Information about the original tool>)
 - [Disclaimer](./disclaimer.md)
+
+## Important information regarding this fork
+
+As the main project seems to be abandoned for now - given how my pull request to fix the parsed website hasn't been merged since the 28th Nov and the current version doesn't work at all - I'm uploading my changes to the script, so anyone who still wants to keep using it to watch dramas can do so.
+
+Some changes compared to the original one:
+- Changed the default player from <i>mpv</i> to <i>VLC</i> (since I use vlc)
+- Tested and works with snap VLC (probably works with snap mpv as well)
+- No longer outputs the video url in the terminal, since it's mostly necessary only for debugging
+- Prints the current server it's using
+
+
+Things I'm working on/plan to work on:
+- Flatpak support
+- No check for the default player (currently VLC) if any other supported video player is installed
+- Simple install script with dependencies
+- Update the android install instructions
+- Fuzzy search and other features like seen in [ani-cli](https://github.com/pystardust/ani-cli)
 
 ## Install
 
 ### Linux
 
-Install dependencies [(See below)](#Dependencies)
+1. Make sure you have all the dependencies installed:
+    - grep
+    - sed
+    - curl
+    - openssl
+    - aria2 - Download manager
+    - ffmpeg - m3u8 Downloader
+    - VLC (snap or regular package)
 
-```sh
-git clone https://github.com/CoolnsX/dra-cla && cd dra-cla
-sudo cp dra-cla /usr/local/bin/dra-cla
-```
+2. Clone the repository
 
-*Note that mpv installed through flatpak is not compatible*
+3. Copy the following line to copy the binary to the required directory
+    ```bash
+    cd dra-cla && sudo cp ./dra-cla /usr/local/bin/dra-cla && cd ..
+    ```
 
-#### Nix
+4. Optional - delete the cloned directory as it's no longer necessary
+    ```bash
+    rm -r dra-cla
+    ```
 
-``` shell
-nix-shell -p dra-cla
-```
+### Android - unsupported as of now
 
-### Android
-
-Install termux [(Guide)](https://termux.com/)
-
-```sh
-pkg update
-pkg install git termux-tools ncurses-utils openssl-tool ffmpeg -y
-git clone https://github.com/CoolnsX/dra-cla && cd dra-cla
-cp dra-cla $PREFIX/bin/dra-cla
-echo 'am start -n is.xyz.mpv/.MPVActivity "$1"' > $PREFIX/bin/mpv
-chmod +x $PREFIX/bin/mpv
-```
-
-Install mpv-android [(Link)](https://play.google.com/store/apps/details?id=is.xyz.mpv)
-
-*Add ```referrer="https://asianembed.io"``` to mpv.conf (Open mpv app, goto three dots top right->Settings->Advanced-->Edit mpv.conf)* 
-
-*Note: VLC android doesn't support referrer option. So it will not work*
+Currently not tested with the new website, so it's not supported
 
 ## Uninstall
 
-* Linux: ```sudo rm /usr/local/bin/dra-cla```
-* Android: ```rm $PREFIX/bin/dra-cla```
+* Run the following command to delete the binary:
+    ```bash
+    sudo rm /usr/local/bin/dra-cla
+    ```
 
-## Dependencies
+## Information about the original tool
 
-- grep
-- sed
-- curl
-- openssl
-- mpv - Video Player
-- aria2 - Download manager
-- ffmpeg - m3u8 Downloader
+This tool is a fork of CoolnsX's [dra-cla](https://github.com/CoolnsX/dra-cla) (please read the top of this page for more information why this fork was created). From their original README:
+
+>A cli to browse and watch Korean Drama, Chinese drama. This tool scrapes the site [asianembed](https://asianembed.io) which is the site dramacool scrapes from.
+<br>
+>This tool is modified version of [ani-cli](https://github.com/pystardust/ani-cli) which is anime scraping tool. Feel free to check it out if you need to watch anime.
