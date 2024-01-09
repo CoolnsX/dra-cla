@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 VERSION="2.2.3"
 
@@ -338,9 +338,9 @@ open_episode () {
 	inf "Loading episode $episode..."
 	# decrypting url
 	dpage_link=$(get_dpage_link "$drama_id" "$episode")
-	echo "$dpage_link"
+	# echo "$dpage_link"
     	video_url=$(get_video_quality "$dpage_link")
-	echo "$video_url"
+	# echo "$video_url"
 	if [ "$is_download" -eq 0 ]; then
 		# write drama and episode number and save to temporary history
 		sed -E "
@@ -382,6 +382,7 @@ play_episode () {
 		nohup "$@" > /dev/null 2>&1 &
 	else
 		inf "Currently playing $display_name episode" "$episode/$last_ep_number, Range: $ep_choice_start-$ep_choice_end"
+		echo "$@"
 		"$@" > /dev/null 2>&1
 		sleep 2
 	fi
@@ -396,7 +397,7 @@ play_episode () {
 trap 'printf "\033[0m";[ -f "$logfile".new ] && rm "$logfile".new;exit 1' INT HUP
 
 # default options
-player_fn="mpv" #video player needs to be able to play urls
+player_fn="vlc" #video player needs to be able to play urls
 is_download=0
 PID=0
 quality=best
@@ -435,7 +436,7 @@ while getopts 'vq:dp:chDUVa:' OPT; do
 			scrape=history
 			;;
 		v)
-			player_fn="vlc"
+			player_fn="mpv"
 			;;
 		U)
 			update_script
@@ -463,9 +464,11 @@ fi
 # Get the current working URL
 base_url=$(curl -Ls -o /dev/null -w %{url_effective} https://asianembed.io)
 
-if [ "$base_url" = "https://asianembed.io/" ]; then
+if [[ "$base_url" == *"asianembed"* ]]; then
 	base_url=$(curl -Ls -o /dev/null -w "%{url_effective}" https://dramacool.info)
 fi
+
+echo "Server in use: $base_url"
 
 case $scrape in
 	query)
