@@ -4,13 +4,12 @@
 <a href="https://github.com/fengbainuo"><img src="https://img.shields.io/badge/maintainer-fengbainuo-white"></a>
 
 ## Table of Contents
-- [Important information regarding this fork](<#Important information regarding this fork>)
+- Important information regarding this fork
 - [Install](#Install)
   - [Linux](#Linux)
-  - [Android - unsupported as of now](<#Android - unsupported as of now>)
+  - Android - unsupported as of now
 - [Uninstall](#Uninstall)
-- [Dependencies](#Dependencies)
-- [Information about the original tool](<#Information about the original tool>)
+- Information about the original tool
 - [Disclaimer](./disclaimer.md)
 
 ## Important information regarding this fork
