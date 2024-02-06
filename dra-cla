@@ -25,7 +25,7 @@ help_text() {
 		Usage:
 		  ${0##*/} [-v] [-q <quality>] [-a <episode>] [-d | -p <download_dir>] [<query>]
 		  ${0##*/} [-v] [-q <quality>] -c
-		  ${0##*/} -h | -D | -U | -V
+		  ${0##*/} -h | -U | -V
 
 		Options:
 		  -c continue watching drama from history
@@ -35,7 +35,7 @@ help_text() {
 		  -p download episode to specified directory
 		  -q set video quality (best|worst|360|480|720|1080)
 		  -v use VLC as the media player
-		  -D delete Entire history
+		  -D Delete Entire history
 		  -U fetch update from github
 		  -V print version number and exit
 
@@ -109,9 +109,20 @@ dep_ch() {
 
 download() {
 	case "$1" in
-		*m3u8*) ;;
-		*) aria2c --enable-rpc=false --check-certificate=false --continue --summary-interval=0 -x16 -s16 "$1" --dir="$download_dir" -o "$2.mp4" --download-result=hide ;;
+		*m3u8*)
+			log "Fetching Metadata"
+			data=$(curl -s -A "$agent" "$1" | sed '/#/d')
+			printf '%s' "$data" |  nl -n'rz' | sed -E "s|^([0-9]*)[[:space:]]*(.*)|${3}\2\n\tout=\1.ts|g" | aria2c -x16 -s16 -j50 -d "$logdir/dra-hls" -i - --download-result=hide --summary-interval=0 --allow-overwrite=true
+			log "\nConcatenating Pieces..\n"
+			cat "$logdir/dra-hls"/* | ffmpeg -loglevel error -stats -i - -c copy "$download_dir/$2.mp4" -y
+			rm -f "$logdir/dra-hls"/*
+			;;
+		*)
+			aria2c --enable-rpc=false --check-certificate=false --continue --summary-interval=0 -x16 -s16 "$1" --dir="$download_dir" -o "$2.mp4" --download-result=hide
+			;;
 	esac
+	tput clear
+	log "Downloaded $2/$4"
 }
 
 open_episode() {
@@ -125,8 +136,8 @@ open_episode() {
 		printf "%s%s\n" "$id" "$((episode + 1))" >>"$logfile"
 	fi
 	[ -z "$video_link" ] && log "Video URL not found" "31"
-	[ "$player_function" = "download" ] && display="Downloading $title Episode $episode/$total_eps on $player_function\n" || display="Streaming $title Episode $episode/$total_eps\n"
-	log "$display" "32"
+	[ "$player_function" = "download" ] && display="Downloading" || display="Streaming"
+	log "$display $title Episode $episode/$total_eps\n" "32"
 	[ -z "$nohup" ] && ! printf "%s" "$player_function" | grep -q "android" && log "To play next Episode, quit the player."
 
 	#media Player
@@ -135,7 +146,7 @@ open_episode() {
 		android_mpv) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 ;;
 		vlc*) $nohup $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 ;;
 		android_vlc) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "${title} Episode ${episode}" >/dev/null 2>&1 ;;
-		download) "$player_function" "$video_link" "${title} Episode ${episode}" ;;
+		download) "$player_function" "$video_link" "${title} Episode ${episode}" "$relative_link" "$total_eps";;
 	esac
 
 	dpage_link=""
@@ -147,24 +158,26 @@ decrypt_link() {
 	iv='39323632383539323332343335383235'
 	ajax_url="$base_url/encrypt-ajax.php"
 	ajax=$(printf "%s" "$1" | sed -nE 's/.*id=([^&]*)&.*/\1/p' | openssl enc -e -aes256 -K "$secret_key" -iv "$iv" -a)
-	video_links=$(curl -A "$agent" -s -H "X-Requested-With:XMLHttpRequest" "$ajax_url" -d "id=$ajax" | sed -e 's/{"data":"//' -e 's/"}/\n/' -e 's/\\//g' | base64 -d | openssl enc -d -aes256 -K "$secret_key" -iv "$iv" | sed -e 's/\].*/\]/' -e 's/\\//g' | tr '{|}' '\n' | sed -nE 's/\"file\":"([^"]*)".*label.*P.*/\1/p')
+	video_url=$(curl -A "$agent" -s -H "X-Requested-With:XMLHttpRequest" "$ajax_url" -d "id=$ajax" | sed -e 's/{"data":"//' -e 's/"}/\n/' -e 's/\\//g' | base64 -d | openssl enc -d -aes256 -K "$secret_key" -iv "$iv" | sed -e 's/\].*/\]/' -e 's/\\//g' | tr '{|}' '\n' | sed -nE 's/\"file\":"([^"]*)".*label.*P.*/\1/p')
 }
 
 get_video_url() {
 	decrypt_link "$dpage_link"
+	relative_link=$(printf "%s" "$video_url" | sed 's|[^/]*$||')
+	video_links=$(curl -s -A "$agent" "$video_url" | sed "s|^#.*x||g; s|,.*|p|g; /^#/d; \$!N; s|\n| >${relative_link}|")
 	case $quality in
 		best)
-			video_link=$(printf '%s' "$video_links" | head -n 4 | tail -n 1 | cut -d'>' -f2)
+			video_link=$(printf '%s' "$video_links" | tail -n 1 | cut -d'>' -f2)
 			;;
 		worst)
 			video_link=$(printf '%s' "$video_links" | head -n 1 | cut -d'>' -f2)
 			;;
 		*)
-			video_link=$(printf '%s' "$video_links" | grep -i "${quality}p" | head -n 1 | cut -d'>' -f2)
+			video_link=$(printf '%s' "$video_links" | sed -n "/${quality}p >/p" | cut -d'>' -f2)
 			if [ -z "$video_link" ]; then
 				log "Current video quality is not available (defaulting to best quality)\n" "31"
 				quality=best
-				video_link=$(printf '%s' "$video_links" | head -n 4 | tail -n 1 | cut -d'>' -f2)
+				video_link=$(printf '%s' "$video_links" | tail -n 1 | cut -d'>' -f2)
 			fi
 			;;
 	esac
@@ -239,7 +252,7 @@ log "Checking Dependencies.."
 dep_ch "curl sed grep openssl fzf"
 if [ "$player_function" = "download" ]; then
 	dep_ch "aria2c ffmpeg"
-elif ! printf "%s" "$player_function" | grep -q "android";then
+elif ! printf "%s" "$player_function" | grep -q "android"; then
 	dep_ch "$player_function"
 fi
 
@@ -293,11 +306,11 @@ episode="${ep_end:-$ep_start}"
 
 while cmd=$(printf "next\nreplay\nprevious\nselect\nchange_quality\nquit" | menu "Select Option"); do
 	case "$cmd" in
-		next) [ "$episode" -lt "$total_eps" ] && : $((episode+=1)) || flag=1 ;;
+		next) [ "$episode" -lt "$total_eps" ] && : $((episode += 1)) || flag=1 ;;
 		replay) ;;
-		previous) [ "$episode" -gt 1 ] && : $((episode-=1)) || flag=1 ;;
+		previous) [ "$episode" -gt 1 ] && : $((episode -= 1)) || flag=1 ;;
 		select) ask "Episodes [1-$total_eps]: " && read -r episode ;;
-		*) exit 0 ;;
+		*) log "" && exit 0 ;;
 	esac
 	[ -n "$flag" ] && log "Out of Range" "31" && flag="" && continue
 	open_episode
