@@ -1,5 +1,5 @@
 
-<h1> Refactoring the script and using fzf for UI. WIP </h1>
+### This script is refactored and now using fzf (make sure it is installed as script now checks for it) for showing menus, if you don't like fzf then you can continue to use old one. I would suggest to try fzf based one.
 
 <p align=center>
 <br>
@@ -50,18 +50,14 @@ Install termux [(Guide)](https://termux.com/)
 
 ```sh
 pkg update
-pkg install git termux-tools ncurses-utils openssl-tool ffmpeg -y
+pkg install git termux-tools ncurses-utils openssl-tool ffmpeg fzf aria2 -y
 git clone https://github.com/CoolnsX/dra-cla && cd dra-cla
 cp dra-cla $PREFIX/bin/dra-cla
-echo 'am start -n is.xyz.mpv/.MPVActivity "$1"' > $PREFIX/bin/mpv
-chmod +x $PREFIX/bin/mpv
 ```
 
 Install mpv-android [(Link)](https://play.google.com/store/apps/details?id=is.xyz.mpv)
 
-*Add ```referrer="https://asianembed.io"``` to mpv.conf (Open mpv app, goto three dots top right->Settings->Advanced-->Edit mpv.conf)* 
-
-*Note: VLC android doesn't support referrer option. So it will not work*
+For VLC: pass ``` dra-cla -v ```
 
 ## Uninstall
 
@@ -70,6 +66,7 @@ Install mpv-android [(Link)](https://play.google.com/store/apps/details?id=is.xy
 
 ## Dependencies
 
+- fzf (new)
 - grep
 - sed
 - curl
