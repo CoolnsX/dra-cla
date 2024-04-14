@@ -44,6 +44,14 @@ sudo cp dra-cla /usr/local/bin/dra-cla
 nix-shell -p dra-cla
 ```
 
+#### Arch linux
+
+Use your favorite AUR helper (yay in this case)
+
+``` sh
+yay -S dra-cla-git
+```
+
 ### Android
 
 Install termux [(Guide)](https://termux.com/)
