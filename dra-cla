@@ -3,9 +3,9 @@
 #shellcheck disable=SC2154
 
 # most important variables.
-VERSION="3.0.0"
+VERSION="3.0.1"
 CHANNEL="main"
-base_url="https://pladrac.net"
+base_url="https://streamcool.pro"
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
 logfile="$logdir/dra-hsts"
 quality=best
@@ -190,9 +190,14 @@ get_video_url() {
 #create history file
 [ -d "$logdir" ] || mkdir "$logdir"
 [ -f "$logfile" ] || : >"$logfile"
+download_dir="."
 
 # OS detection for player selection and default download location.
-case "$(uname -o)" in
+case "$(uname -a)" in
+	*MINGW* | *WSL2*)
+		player_function="mpv.exe"
+		alt_player="vlc.exe"
+		;;
 	*ndroid*)
 		player_function="android_mpv"
 		download_dir="/sdcard"
@@ -200,7 +205,6 @@ case "$(uname -o)" in
 		;;
 	*)
 		player_function="mpv"
-		download_dir="."
 		alt_player="vlc"
 		command -v "doas" >/dev/null && sudo="doas " || sudo="sudo "
 		;;
