@@ -142,9 +142,9 @@ open_episode() {
 
 	#media Player
 	case "$player_function" in
-		mpv*) $nohup $player_function --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 ;;
+		mpv*) [ -z "$nohup" ] && $player_function --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 || ( $nohup $player_function --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 & );;
 		android_mpv) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 ;;
-		vlc*) $nohup $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 ;;
+		vlc*) [ -z "$nohup" ] && $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 || ( $nohup $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 & );;
 		android_vlc) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "${title} Episode ${episode}" >/dev/null 2>&1 ;;
 		download) "$player_function" "$video_link" "${title} Episode ${episode}" "$relative_link" "$total_eps";;
 	esac
@@ -302,7 +302,7 @@ if [ -n "$ep_end" ]; then
 		open_episode
 	done
 else
-	nohup="setsid -f"
+	nohup="nohup"
 	episode="${ep_start}"
 	open_episode
 fi
