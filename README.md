@@ -80,5 +80,6 @@ For VLC: pass ``` dra-cla -v ```
 - curl
 - openssl
 - mpv - Video Player
+- syncplay - for watching with friends
 - aria2 - Download manager
 - ffmpeg - m3u8 Downloader

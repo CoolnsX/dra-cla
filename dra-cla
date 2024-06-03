@@ -3,7 +3,7 @@
 #shellcheck disable=SC2154
 
 # most important variables.
-VERSION="3.0.1"
+VERSION="3.0.2"
 CHANNEL="main"
 base_url="https://streamcool.pro"
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -147,6 +147,7 @@ open_episode() {
 		vlc*) [ -z "$nohup" ] && $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 || ( $nohup $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 & );;
 		android_vlc) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "${title} Episode ${episode}" >/dev/null 2>&1 ;;
 		download) "$player_function" "$video_link" "${title} Episode ${episode}" "$relative_link" "$total_eps";;
+		*yncpla*) nohup "$player_function" "$video_link" -- --force-media-title="${title} Episode ${episode}" >/dev/null 2>&1 & ;;
 	esac
 
 	dpage_link=""
@@ -197,6 +198,8 @@ case "$(uname -a)" in
 	*MINGW* | *WSL2*)
 		player_function="mpv.exe"
 		alt_player="vlc.exe"
+		export PATH="$PATH":"/c/Program Files (x86)/Syncplay/"
+		syncplay="syncplay.exe"
 		;;
 	*ndroid*)
 		player_function="android_mpv"
@@ -206,11 +209,12 @@ case "$(uname -a)" in
 	*)
 		player_function="mpv"
 		alt_player="vlc"
+		syncplay="syncplay"
 		command -v "doas" >/dev/null && sudo="doas " || sudo="sudo "
 		;;
 esac
 
-while getopts 'vq:dp:chDUVa:' OPT; do
+while getopts 'vq:dp:chDUVa:s' OPT; do
 	case $OPT in
 		d)
 			player_function="download"
@@ -225,6 +229,9 @@ while getopts 'vq:dp:chDUVa:' OPT; do
 		p)
 			player_function="download"
 			download_dir=$OPTARG
+			;;
+		s)
+			player_function=$syncplay
 			;;
 		q)
 			quality=$OPTARG
