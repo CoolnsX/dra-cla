@@ -3,7 +3,7 @@
 #shellcheck disable=SC2154
 
 # most important variables.
-VERSION="3.0.2"
+VERSION="3.0.3"
 CHANNEL="main"
 base_url="https://streamcool.pro"
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
@@ -112,7 +112,7 @@ download() {
 		*m3u8*)
 			log "Fetching Metadata"
 			data=$(curl -s -A "$agent" "$1" | sed '/#/d')
-			printf '%s' "$data" |  nl -n'rz' | sed -E "s|^([0-9]*)[[:space:]]*(.*)|${3}\2\n\tout=\1.ts|g" | aria2c -x16 -s16 -j50 -d "$logdir/dra-hls" -i - --download-result=hide --summary-interval=0 --allow-overwrite=true
+			printf '%s' "$data" | nl -n'rz' | sed -E "s|^([0-9]*)[[:space:]]*(.*)|${3}\2\n\tout=\1.ts|g" | aria2c -x16 -s16 -j50 -d "$logdir/dra-hls" -i - --download-result=hide --summary-interval=0 --allow-overwrite=true
 			log "\nConcatenating Pieces..\n"
 			cat "$logdir/dra-hls"/* | ffmpeg -loglevel error -stats -i - -c copy "$download_dir/$2.mp4" -y
 			rm -f "$logdir/dra-hls"/*
@@ -129,7 +129,12 @@ open_episode() {
 	tput clear
 	log "Fetching $title Episode $episode.."
 	[ -z "$dpage_link" ] && dpage_link=$(curl -s -A "$agent" "$base_url/videos/${id}${episode}" | sed -nE 's_^[[:space:]]*<iframe src="([^"]*)".*_https:\1_p')
-	get_video_url
+	providers_link="$(curl -s "$dpage_link" -A "$agent" | sed -nE 's|.*data-provider="([^"]*)" data-video="([^"]*)".*|\1>\2|p')"
+	for provider in streamwish vidhide main; do
+		log "Fetching $provider links.."
+		get_video_url
+		[ -n "$video_link" ] && break
+	done
 	if grep -q "$id" "$logfile"; then
 		sed -E "s/^${id}.*/${id}$((episode + 1))/" "$logfile" >"${logfile}.new"
 	else
@@ -142,11 +147,23 @@ open_episode() {
 
 	#media Player
 	case "$player_function" in
-		mpv*) [ -z "$nohup" ] && $player_function --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 || ( $nohup $player_function --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 & );;
+		mpv*)
+			if [ -z "$nohup" ]; then
+				$player_function --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1
+			else
+				$nohup "$player_function" --force-media-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 &
+			fi
+			;;
 		android_mpv) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 ;;
-		vlc*) [ -z "$nohup" ] && $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 || ( $nohup $player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 & );;
+		vlc*)
+			if [ -z "$nohup" ]; then
+				$player_function --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1
+			else
+				$nohup "$player_function" --play-and-exit --meta-title="${title} Episode ${episode}" "$video_link" >/dev/null 2>&1 &
+			fi
+			;;
 		android_vlc) am start --user 0 -a android.intent.action.VIEW -d "$video_link" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "${title} Episode ${episode}" >/dev/null 2>&1 ;;
-		download) "$player_function" "$video_link" "${title} Episode ${episode}" "$relative_link" "$total_eps";;
+		download) "$player_function" "$video_link" "${title} Episode ${episode}" "$relative_link" "$total_eps" ;;
 		*yncpla*) nohup "$player_function" "$video_link" -- --force-media-title="${title} Episode ${episode}" >/dev/null 2>&1 & ;;
 	esac
 
@@ -163,9 +180,17 @@ decrypt_link() {
 }
 
 get_video_url() {
-	decrypt_link "$dpage_link"
+	case "$provider" in
+		vidhide | streamwish)
+			stream_link=$(printf "%s" "$providers_link" | grep "$provider" | cut -d'>' -f2)
+			video_url=$(curl -s "$stream_link" -A "$agent" | sed -nE 's|.*file:"(.*m3u8[^"]*)".*|\1|p')
+			;;
+		*)
+			decrypt_link "$dpage_link"
+			;;
+	esac
 	relative_link=$(printf "%s" "$video_url" | sed 's|[^/]*$||')
-	video_links=$(curl -s -A "$agent" "$video_url" | sed "s|^#.*x||g; s|,.*|p|g; /^#/d; \$!N; s|\n| >${relative_link}|")
+	video_links=$(curl -s -A "$agent" "$video_url" | sed '/EXT-X-I-FRAME/,$d' | sed "s|^#.*x||g; s|,.*|p|g; /^#/d; \$!N; s|\n| >${relative_link}|")
 	case $quality in
 		best)
 			video_link=$(printf '%s' "$video_links" | tail -n 1 | cut -d'>' -f2)
