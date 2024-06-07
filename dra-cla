@@ -10,7 +10,7 @@ logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
 logfile="$logdir/dra-hsts"
 quality=best
 scrape=query
-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12$(head -5 /dev/urandom | tr -dc '0-2' | cut -c1).0.0.0 Safari/537.36"
+agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12$(head -5 /dev/urandom | tr -dc '2-5' | cut -c1).0.0.0 Safari/537.36"
 trap 'rm -f '"$logfile"'.new' INT HUP
 
 ############
@@ -340,7 +340,7 @@ else
 fi
 episode="${ep_end:-$ep_start}"
 
-while cmd=$(printf "next\nreplay\nprevious\nselect\nchange_quality\nquit" | menu "Select Option"); do
+while cmd=$(printf "next\nreplay\nprevious\nselect\nquit" | menu "Select Option"); do
 	case "$cmd" in
 		next) [ "$episode" -lt "$total_eps" ] && : $((episode += 1)) || flag=1 ;;
 		replay) ;;
