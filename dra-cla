@@ -3,7 +3,7 @@
 #shellcheck disable=SC2154
 
 # most important variables.
-VERSION="3.0.3"
+VERSION="3.0.4"
 CHANNEL="main"
 base_url="https://embasic.pro"
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
