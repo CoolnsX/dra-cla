@@ -3,14 +3,14 @@
 #shellcheck disable=SC2154
 
 # most important variables.
-VERSION="3.0.4"
+VERSION="3.0.5"
 CHANNEL="main"
 base_url="https://embasic.pro"
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}"
 logfile="$logdir/dra-hsts"
 quality=best
 scrape=query
-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12$(head -5 /dev/urandom | tr -dc '2-5' | cut -c1).0.0.0 Safari/537.36"
+agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/13$(head -5 /dev/urandom | tr -dc '0-5' | cut -c1).0.0.0 Safari/537.36"
 trap 'rm -f '"$logfile"'.new' INT HUP
 
 ############
@@ -295,7 +295,7 @@ fi
 if [ "$scrape" = "query" ]; then
 	[ -z "$*" ] && ask "Search Drama: " && read -r query || query=$*
 	log "Searching Drama.."
-	response=$(curl -A "$agent" -s "$base_url/search.html" -G --data-urlencode "keyword=$query" | sed -nE 's_^[[:space:]]*<a href="/videos/([^"]*)-episode-([0-9]*)">_\1 (\2 Episodes)_p')
+	response=$(curl -A "$agent" -H "X-Requested-With:XMLHttpRequest" -s "$base_url/ajax-search.html" -G --data-urlencode "keyword=$query" | sed 's/\\//g;s/<li>/\n/g' | sed -nE 's_<a href="/videos/([^"]*)-episode-([0-9]*)" class.*_\1 (\2 Episodes)_p')
 	[ -z "$response" ] && log "No Results Found" "31" && exit 0
 	log ""
 	id=$(printf "%s" "$response" | tr '-' ' ' | menu "Select Drama")
